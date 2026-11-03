@@ -1,0 +1,9 @@
+region,product,amount,units
+East,Laptop,1200,2
+East,Mouse,50,10
+West,Laptop,1800,3
+West,Monitor,600,2
+North,Laptop,600,1
+North,Mouse,25,5
+South,Monitor,900,3
+South,Mouse,75,15

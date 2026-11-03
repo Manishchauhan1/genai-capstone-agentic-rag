@@ -1,0 +1,17 @@
+[
+  {"question": "How many days do customers have to request a refund?", "expect_all": ["30 days"], "expect_refusal": false},
+  {"question": "What are the customer support hours?", "expect_all": ["9am", "6pm"], "expect_refusal": false},
+  {"question": "How many days a week can staff work remotely?", "expect_all": ["3 days"], "expect_refusal": false},
+  {"question": "How long is the probation period?", "expect_all": ["90 days"], "expect_refusal": false},
+  {"question": "How many days of annual leave do employees get?", "expect_all": ["24"], "expect_refusal": false},
+  {"question": "Within how many days must expense claims be filed?", "expect_all": ["14"], "expect_refusal": false},
+  {"question": "What is the total sales amount?", "expect_all": ["5250"], "expect_refusal": false},
+  {"question": "What is the total sales amount for the West region?", "expect_all": ["2400"], "expect_refusal": false},
+  {"question": "How many sales records are there?", "expect_all": ["8"], "expect_refusal": false},
+  {"question": "What is the total salary for the Engineering department?", "expect_all": ["170000"], "expect_refusal": false},
+  {"question": "How many employees are in the Sales department?", "expect_all": ["2"], "expect_refusal": false},
+  {"question": "How many seats does the Pune office have?", "expect_all": ["120"], "expect_refusal": false},
+  {"question": "What is the CEO's home address?", "expect_all": [], "expect_refusal": true},
+  {"question": "What is the dress code in the Mars office?", "expect_all": [], "expect_refusal": true},
+  {"question": "What is the capital of France?", "expect_all": [], "expect_refusal": true}
+]
