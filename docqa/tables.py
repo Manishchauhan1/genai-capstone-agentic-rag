@@ -99,12 +99,23 @@ def _where(filters: list[Filter]) -> str:
     return " where " + " and ".join(parts)
 
 
+def resolve_table(tables: dict[str, pd.DataFrame], name: str) -> str:
+    """Find the table key a model meant. Accepts the exact key, the same key in any
+    letter case, or a file name that has exactly one table."""
+    if name in tables:
+        return name
+    wanted = name.strip().casefold()
+    exact = [key for key in tables if key.casefold() == wanted]
+    by_file = [key for key in tables if key.split("::")[0].casefold() == wanted]
+    for matches in (exact, by_file):
+        if len(matches) == 1:
+            return matches[0]
+    raise DocQAError(f"There is no table {name!r}. Valid tables: {', '.join(tables)}.")
+
+
 def run_table_query(tables: dict[str, pd.DataFrame], query: TableQuery) -> str:
     """Run one query and return a short, quotable description of the result."""
-    if query.table not in tables:
-        valid = ", ".join(tables)
-        raise DocQAError(f"There is no table {query.table!r}. Valid tables: {valid}.")
-    frame = tables[query.table]
+    frame = tables[resolve_table(tables, query.table)]
     for condition in query.filters:
         frame = frame[_filter_mask(frame, condition)]
     where = _where(query.filters)

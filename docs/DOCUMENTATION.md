@@ -17,9 +17,10 @@ Contents: 1. System setup · 2. Architecture · 3. Agent roles · 4. Deployment 
 **Prerequisites**
 
 - Python 3.11 or newer
-- A free Groq account and API key (<https://console.groq.com>), and the name of a general chat
-  model from the model list in your Groq console (not a "reasoning" model: the app strips
-  `<think>` blocks from replies, but plain chat models are faster and use fewer free-tier tokens)
+- A free Groq account and API key (<https://console.groq.com>), and the name of a chat model your
+  account can use (open the model list in your Groq console and copy the exact ID). The project
+  was tested with `openai/gpt-oss-120b`. Model availability differs between accounts: a model
+  that your account cannot use fails with "does not exist or you do not have access".
 - Internet access the first time you run the app (it downloads a small embedding model once)
 
 **Steps**
@@ -173,8 +174,12 @@ memory for their session.
   largest and says how many were left out.
 - **Same file name, different content.** The second file is kept and shown as `name (2).ext`.
   Removing a file in the uploader rebuilds the index from the files that remain.
-- **Evaluation.** The 15-question evaluation (12 fact questions and 3 that should be refused) is
-  small. **TODO: add the real pass rate and any failures from `eval/results.md`.**
+- **Evaluation.** The 15-question evaluation (12 fact questions and 3 that must be refused,
+  over the files in `samples/`) passed 15 of 15 on the final run with `openai/gpt-oss-120b`
+  (`eval/results.md`, 47 LLM calls). The set is small and the model is not fully deterministic.
+  Earlier runs of the same questions scored 4/15, 13/15 and 14/15 while the problems listed in
+  part 6 were being fixed, and one question (West region total) still failed in 2 of 15 repeated
+  runs until the table-name fix. Treat a passing run as evidence, not a guarantee.
 
 ## 6. Challenges faced during development
 
@@ -195,3 +200,15 @@ memory for their session.
   equal.
 - **Arithmetic without running model-written code.** The model fills in a structured query and our
   own pandas code runs it. A test proves a hostile filter value is never executed.
+- **The first real run exposed three bugs the offline tests could not.** The first full
+  evaluation scored 4/15. (1) The model wrote citations as 【1】 instead of [1], so the Validator
+  rejected every correct lookup answer. Citations in any bracket style are now rewritten to
+  `[n]`. (2) The Planner sometimes called "customer support hours" unrelated to the files. An
+  "unrelated" verdict is now overridden when the vector search finds a good match. (3) The
+  Analyst sometimes named the table `sales.csv` instead of `sales.csv::csv`, which silently
+  fell back to text search. A file name that has exactly one table is now accepted.
+- **Evaluation checker flaws.** Two correct answers were scored as failures because the model
+  typed a no-break space ("3 days") or "9 am" where the expected text was "9am". The checker now
+  ignores spacing. The answers were never wrong, and the checker change is covered by tests.
+- **Finding the bug needed repeated runs.** One question failed only about 2 times in 15, so a
+  small diagnostic script ran it repeatedly and printed each model reply for the failing runs.

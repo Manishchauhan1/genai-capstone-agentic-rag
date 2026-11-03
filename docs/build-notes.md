@@ -23,3 +23,8 @@ Real problems met while building, with what was done. The "Challenges" part of
 - **The model must never run code.** Table questions ("total sales for the West region") need
   arithmetic. Fix: the model only fills in a small structured query, and our own code runs it with
   plain pandas; a test proves a hostile filter value is never executed.
+- **The first real run found three bugs the offline tests could not.** Score 4/15. Citations came
+  back as 【1】 (the Validator rejected every correct answer), the Planner called a real question
+  unrelated, and the Analyst named a table `sales.csv` instead of `sales.csv::csv`. Each fix was
+  written test-first. The evaluation checker was also fixed for two spacing false failures. Final
+  run: 15/15 with `openai/gpt-oss-120b`.

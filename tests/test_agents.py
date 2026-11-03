@@ -56,7 +56,7 @@ def test_lookup_route_happy_path(pdf_ws):
 
 def test_unrelated_question_stops_after_planner(pdf_ws):
     llm = FakeLLM(['{"route": "unrelated"}'])
-    result = run_agent("What is the capital of France?", pdf_ws, llm)
+    result = run_agent("Volcano eruptions underwater, describe fully", pdf_ws, llm)
     assert "doesn't seem to be about" in result.answer
     assert result.sources == []
     assert result.llm_calls == 1
@@ -147,3 +147,19 @@ def test_empty_question_is_rejected_before_any_llm_call(pdf_ws):
     with pytest.raises(DocQAError):
         run_agent("   ", pdf_ws, llm)
     assert llm.calls == []
+
+
+def test_planner_unrelated_verdict_is_overridden_when_documents_match(pdf_ws):
+    llm = FakeLLM(['{"route": "unrelated"}', "The refund window is 30 days [1].", SUPPORTED])
+    result = run_agent(QUESTION, pdf_ws, llm)
+    assert result.answer == "The refund window is 30 days [1]."
+    assert any("overridden" in line for line in result.trace)
+
+
+def test_analyst_accepts_a_bare_file_name_as_the_table(csv_ws):
+    bare = ANALYST_SUM_EAST.replace("sales.csv::csv", "sales.csv")
+    llm = FakeLLM(['{"route": "table"}', bare, "East sold 1250 [1].", SUPPORTED])
+    result = run_agent("What is the total for East?", csv_ws, llm)
+    assert result.answer == "East sold 1250 [1]."
+    assert result.sources == [Source("sales.csv", "computed")]
+    assert not any("falling back" in line for line in result.trace)

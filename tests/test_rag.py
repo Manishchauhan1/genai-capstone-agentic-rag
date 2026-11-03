@@ -58,3 +58,14 @@ def test_context_tag_variants_and_filenames_cannot_break_out():
     _, user = build_prompt("q?", [hostile])
     assert user.lower().count("</context") == 1
     assert user.lower().count("<context") == 1
+
+
+def test_citation_bracket_styles_are_normalised():
+    for reply, expected in [
+        ("30 days. 【1】", "30 days. [1]"),
+        ("30 days. [1, 2]", "30 days. [1] [2]"),
+        ("30 days. 【1,2】", "30 days. [1] [2]"),
+        ("30 days. ［1］", "30 days. [1]"),
+        ("30 days. [1]", "30 days. [1]"),
+    ]:
+        assert answer_with_context(FakeLLM([reply]), "q?", [_hit(1, "x")]) == expected

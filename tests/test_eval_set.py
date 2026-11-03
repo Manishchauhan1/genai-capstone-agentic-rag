@@ -65,7 +65,7 @@ def test_run_eval_scores_each_answer(samples_dir, offline_embedding):
     workspace = build_workspace(samples_dir, embedding_function=offline_embedding)
     items = [
         {"question": "What is the refund window?", "expect_all": ["30 days"], "expect_refusal": False},
-        {"question": "What is the capital of France?", "expect_all": [], "expect_refusal": True},
+        {"question": "Volcano eruptions underwater, describe fully", "expect_all": [], "expect_refusal": True},
     ]
     llm = FakeLLM(
         ['{"route": "lookup"}', "Refunds take 30 days [1].", '{"supported": true}',
@@ -85,3 +85,19 @@ def test_score_questions_reports_best_score_per_question(samples_dir, offline_em
     scores = score_questions(EVAL_SET[:2], workspace)
     assert [question for question, _ in scores] == [item["question"] for item in EVAL_SET[:2]]
     assert all(0.0 <= score <= 1.0 for _, score in scores)
+
+
+def test_check_answer_ignores_unusual_spaces_from_the_model():
+    from eval.run_eval import check_answer
+
+    item = {"expect_all": ["3 days"], "expect_refusal": False}
+    answer = "Staff can work remotely up to 3 days a week[1]."  # narrow no-break space
+    assert check_answer(item, answer)
+
+
+def test_check_answer_ignores_spacing_inside_expected_values():
+    from eval.run_eval import check_answer
+
+    item = {"expect_all": ["9am", "6pm"], "expect_refusal": False}
+    assert check_answer(item, "Support is available 9 am to 6 pm, Monday through Friday[1].")
+    assert not check_answer(item, "Support is available 9 to 5.")

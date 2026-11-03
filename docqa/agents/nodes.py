@@ -15,7 +15,7 @@ from docqa.errors import DocQAError
 from docqa.llm import LLM
 from docqa.models import Chunk, Hit, Source
 from docqa.rag import NOT_FOUND_MESSAGE, answer_with_context, format_context, sources_from
-from docqa.tables import TableQuery, describe_tables, run_table_query
+from docqa.tables import TableQuery, describe_tables, resolve_table, run_table_query
 from docqa.workspace import Workspace
 
 MAX_REWRITES = 2
@@ -120,7 +120,11 @@ def planner(state: AgentState, ctx: AgentContext) -> dict:
         "rewrites": 0,
         "trace": state["trace"] + [f"Planner: route={route}"],
     }
-    if route == "unrelated":
+    if route == "unrelated" and not retrieval.retrieve(ctx.workspace.store, state["question"]).weak:
+        # The documents do match this question, so the model's verdict is wrong. Search anyway.
+        update["route"] = "lookup"
+        update["trace"] = state["trace"] + ["Planner: route=unrelated overridden, documents match"]
+    elif route == "unrelated":
         update["final"] = UNRELATED_MESSAGE
         update["sources"] = []
     return update
@@ -154,7 +158,7 @@ def analyst(state: AgentState, ctx: AgentContext) -> dict:
     except (ValueError, TypeError, DocQAError):
         line = "Analyst: could not build a valid table query, falling back to search"
         return {"route": "lookup", "trace": state["trace"] + [line]}
-    filename = query.table.split("::")[0]
+    filename = resolve_table(tables, query.table).split("::")[0]
     pseudo_hit = Hit(Chunk("table", result, filename, "computed", ""), 1.0)
     line = f"Analyst: {result.splitlines()[0]}"
     return {"route": "table", "hits": [pseudo_hit], "trace": state["trace"] + [line]}

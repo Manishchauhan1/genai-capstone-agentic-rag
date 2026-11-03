@@ -121,3 +121,15 @@ def test_group_by_output_is_capped():
     assert len(result.splitlines()) <= MAX_LIST_ROWS + 3
     assert "30 more groups" in result
     assert "id79: 79" in result  # the largest groups are the ones kept
+
+
+def test_file_name_alone_selects_its_only_table(tables):
+    assert run_table_query(tables, TableQuery(table="sales.csv", operation="count")).endswith("= 5")
+    assert run_table_query(tables, TableQuery(table="SALES.CSV::CSV", operation="count")).endswith("= 5")
+
+
+def test_file_name_with_several_tables_is_ambiguous(tables):
+    both = {"staff.xlsx::Staff": tables[KEY], "staff.xlsx::Offices": tables[KEY]}
+    with pytest.raises(DocQAError) as exc:
+        run_table_query(both, TableQuery(table="staff.xlsx", operation="count"))
+    assert "staff.xlsx::Offices" in str(exc.value)

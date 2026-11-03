@@ -6,3 +6,4 @@ __pycache__/
 .streamlit/secrets.toml
 .superpowers/
 tests/fixtures/
+.vscode/

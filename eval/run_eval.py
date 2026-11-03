@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 import time
 from pathlib import Path
 
@@ -34,8 +35,14 @@ def check_answer(item: dict, answer: str) -> bool:
     passes only when the system declined."""
     if item["expect_refusal"]:
         return answer == NOT_FOUND_MESSAGE or "doesn't seem to be about" in answer
-    cleaned = re.sub(r"\[\d+\]", "", answer).replace(",", "").lower()
-    return all(expected.lower() in cleaned for expected in item["expect_all"])
+    # NFKC turns models' no-break spaces into plain spaces; then collapse runs of whitespace.
+    text = unicodedata.normalize("NFKC", answer)
+    cleaned = re.sub(r"\s+", " ", re.sub(r"\[\d+\]", "", text).replace(",", "")).lower()
+    squeezed = cleaned.replace(" ", "")  # "9 am" and "9am" are the same fact
+    return all(
+        expected.lower() in cleaned or expected.lower().replace(" ", "") in squeezed
+        for expected in item["expect_all"]
+    )
 
 
 def build_workspace(samples_dir: Path, embedding_function=None) -> Workspace:

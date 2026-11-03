@@ -22,6 +22,17 @@ _SYSTEM_PROMPT = (
 _CONTEXT_TAG = re.compile(r"<\s*/?\s*context\s*>", re.IGNORECASE)
 
 
+# Some models cite as 【1】, ［1］ or [1, 2] instead of [1] [2].
+_CITATION = re.compile(r"[\[【［]\s*(\d+(?:\s*[,，]\s*\d+)*)\s*[\]】］]")
+
+
+def normalise_citations(answer: str) -> str:
+    """Rewrite every citation style as plain [n] markers."""
+    def replace(match: re.Match) -> str:
+        return " ".join(f"[{n}]" for n in re.findall(r"\d+", match.group(1)))
+    return _CITATION.sub(replace, answer)
+
+
 def _neutralise(text: str) -> str:
     """Stop document text from closing or reopening the context block."""
     return _CONTEXT_TAG.sub("[context]", text)
@@ -58,4 +69,4 @@ def answer_with_context(llm: LLM, question: str, hits: list[Hit]) -> str:
     if not hits:
         return NOT_FOUND_MESSAGE
     system, user = build_prompt(question, hits)
-    return llm.complete(system, user).strip()
+    return normalise_citations(llm.complete(system, user).strip())
