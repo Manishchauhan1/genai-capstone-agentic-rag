@@ -96,6 +96,14 @@ def _parse_json(text: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def _reason(error: Exception) -> str:
+    """A short, safe description of why a table query was rejected (for the trace)."""
+    if hasattr(error, "errors"):  # pydantic validation error
+        parts = [f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in error.errors()[:2]]
+        return "; ".join(parts)[:200]
+    return str(error).splitlines()[0][:200] if str(error) else type(error).__name__
+
+
 def _refuse(state: AgentState, line: str) -> dict:
     return {"final": NOT_FOUND_MESSAGE, "sources": [], "trace": state["trace"] + [line]}
 
@@ -152,11 +160,11 @@ def analyst(state: AgentState, ctx: AgentContext) -> dict:
     try:
         data = _parse_json(reply)
         if data is None:
-            raise ValueError("reply was not JSON")
+            raise ValueError("reply was not valid JSON")
         query = TableQuery(**data)
         result = run_table_query(tables, query)
-    except (ValueError, TypeError, DocQAError):
-        line = "Analyst: could not build a valid table query, falling back to search"
+    except (ValueError, TypeError, DocQAError) as error:
+        line = f"Analyst: could not build a valid table query ({_reason(error)}), falling back to search"
         return {"route": "lookup", "trace": state["trace"] + [line]}
     filename = resolve_table(tables, query.table).split("::")[0]
     pseudo_hit = Hit(Chunk("table", result, filename, "computed", ""), 1.0)

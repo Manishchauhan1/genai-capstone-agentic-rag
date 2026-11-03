@@ -30,6 +30,7 @@ def normalise_citations(answer: str) -> str:
     """Rewrite every citation style as plain [n] markers."""
     def replace(match: re.Match) -> str:
         return " ".join(f"[{n}]" for n in re.findall(r"\d+", match.group(1)))
+    answer = answer.replace("\u202f", " ").replace("\u00a0", " ")  # no-break spaces
     return _CITATION.sub(replace, answer)
 
 

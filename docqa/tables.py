@@ -4,6 +4,7 @@ The LLM never writes code. It fills in a TableQuery (data), and this module runs
 it with plain pandas operations. Nothing here uses eval, exec or DataFrame.query.
 """
 
+from pathlib import PurePath
 from typing import Literal
 
 import pandas as pd
@@ -101,13 +102,14 @@ def _where(filters: list[Filter]) -> str:
 
 def resolve_table(tables: dict[str, pd.DataFrame], name: str) -> str:
     """Find the table key a model meant. Accepts the exact key, the same key in any
-    letter case, or a file name that has exactly one table."""
+    letter case, a file name (with or without its extension) that has exactly one table."""
     if name in tables:
         return name
     wanted = name.strip().casefold()
     exact = [key for key in tables if key.casefold() == wanted]
     by_file = [key for key in tables if key.split("::")[0].casefold() == wanted]
-    for matches in (exact, by_file):
+    by_stem = [key for key in tables if PurePath(key.split("::")[0]).stem.casefold() == wanted]
+    for matches in (exact, by_file, by_stem):
         if len(matches) == 1:
             return matches[0]
     raise DocQAError(f"There is no table {name!r}. Valid tables: {', '.join(tables)}.")

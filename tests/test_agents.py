@@ -163,3 +163,21 @@ def test_analyst_accepts_a_bare_file_name_as_the_table(csv_ws):
     assert result.answer == "East sold 1250 [1]."
     assert result.sources == [Source("sales.csv", "computed")]
     assert not any("falling back" in line for line in result.trace)
+
+
+def test_analyst_fallback_line_says_why(csv_ws):
+    from docqa.agents.nodes import AgentContext, BudgetedLLM, analyst
+
+    bad_operator = ANALYST_SUM_EAST.replace('"=="', '"="')
+    ctx = AgentContext(BudgetedLLM(FakeLLM([bad_operator]), 8), csv_ws)
+    update = analyst({"question": "q", "trace": []}, ctx)
+    assert update["route"] == "lookup"
+    assert "filters.0.op" in update["trace"][-1]
+
+
+def test_analyst_fallback_line_names_unparseable_reply(csv_ws):
+    from docqa.agents.nodes import AgentContext, BudgetedLLM, analyst
+
+    ctx = AgentContext(BudgetedLLM(FakeLLM(["I think the answer is 5."]), 8), csv_ws)
+    update = analyst({"question": "q", "trace": []}, ctx)
+    assert "not valid JSON" in update["trace"][-1]

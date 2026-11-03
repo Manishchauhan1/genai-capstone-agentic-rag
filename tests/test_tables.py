@@ -133,3 +133,14 @@ def test_file_name_with_several_tables_is_ambiguous(tables):
     with pytest.raises(DocQAError) as exc:
         run_table_query(both, TableQuery(table="staff.xlsx", operation="count"))
     assert "staff.xlsx::Offices" in str(exc.value)
+
+
+def test_file_name_without_extension_selects_its_only_table(tables):
+    assert run_table_query(tables, TableQuery(table="sales", operation="count")).endswith("= 5")
+    assert run_table_query(tables, TableQuery(table="Sales", operation="count")).endswith("= 5")
+
+
+def test_extensionless_name_shared_by_two_files_is_ambiguous(tables):
+    both = {"sales.csv::csv": tables[KEY], "sales.xlsx::Sheet1": tables[KEY]}
+    with pytest.raises(DocQAError):
+        run_table_query(both, TableQuery(table="sales", operation="count"))

@@ -69,3 +69,8 @@ def test_citation_bracket_styles_are_normalised():
         ("30 days. [1]", "30 days. [1]"),
     ]:
         assert answer_with_context(FakeLLM([reply]), "q?", [_hit(1, "x")]) == expected
+
+
+def test_special_spaces_in_the_answer_become_normal_spaces():
+    reply = "Total = 1800 + 600 = 2400 [1]."
+    assert answer_with_context(FakeLLM([reply]), "q?", [_hit(1, "x")]) == "Total = 1800 + 600 = 2400 [1]."
