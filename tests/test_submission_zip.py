@@ -62,3 +62,18 @@ def test_zip_works_without_an_env_file(tmp_path):
     project = tmp_path / "project"
     _write(project, "app.py")
     assert build_zip(project, tmp_path / "out.zip") == ["app.py"]
+
+
+def test_zip_excludes_editor_folders_and_other_env_files(tmp_path):
+    project = tmp_path / "project"
+    for name in ["app.py", ".vscode/settings.json", ".idea/x.xml", "venv/lib/x.py",
+                 "env/lib/y.py", ".env.local", ".env.example", ".DS_Store"]:
+        _write(project, name)
+    assert build_zip(project, tmp_path / "out.zip") == [".env.example", "app.py"]
+
+
+def test_zip_refuses_a_groq_looking_key_even_without_an_env_file(tmp_path):
+    project = tmp_path / "project"
+    _write(project, "notes.txt", "key is gsk_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3")
+    with pytest.raises(DocQAError, match="notes.txt"):
+        build_zip(project, tmp_path / "out.zip")
