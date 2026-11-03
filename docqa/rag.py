@@ -22,14 +22,19 @@ def _neutralise(text: str) -> str:
     return text.replace("</context>", "[/context]").replace("<context>", "[context]")
 
 
-def build_prompt(question: str, hits: list[Hit]) -> tuple[str, str]:
-    """Return (system, user) prompts. Document text is wrapped as quoted data."""
+def format_context(numbered_hits: list[tuple[int, Hit]]) -> str:
+    """Render numbered passages as a <context> block. Document text is quoted data."""
     blocks = [
         f"[{number}] ({hit.chunk.filename}, {hit.chunk.location})\n{_neutralise(hit.chunk.text)}"
-        for number, hit in enumerate(hits, start=1)
+        for number, hit in numbered_hits
     ]
-    user = "<context>\n" + "\n\n".join(blocks) + "\n</context>\n\n" + f"Question: {question}"
-    return _SYSTEM_PROMPT, user
+    return "<context>\n" + "\n\n".join(blocks) + "\n</context>"
+
+
+def build_prompt(question: str, hits: list[Hit]) -> tuple[str, str]:
+    """Return (system, user) prompts. Document text is wrapped as quoted data."""
+    context = format_context(list(enumerate(hits, start=1)))
+    return _SYSTEM_PROMPT, f"{context}\n\nQuestion: {question}"
 
 
 def sources_from(hits: list[Hit]) -> list[Source]:
