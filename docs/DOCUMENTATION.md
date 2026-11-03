@@ -17,8 +17,9 @@ Contents: 1. System setup · 2. Architecture · 3. Agent roles · 4. Deployment 
 **Prerequisites**
 
 - Python 3.11 or newer
-- A free Groq account and API key (<https://console.groq.com>), and the name of a model from the
-  model list in your Groq console
+- A free Groq account and API key (<https://console.groq.com>), and the name of a general chat
+  model from the model list in your Groq console (not a "reasoning" model: the app strips
+  `<think>` blocks from replies, but plain chat models are faster and use fewer free-tier tokens)
 - Internet access the first time you run the app (it downloads a small embedding model once)
 
 **Steps**
@@ -116,7 +117,9 @@ tier) for the LLM, pandas, pypdf, openpyxl, pydantic.
 | Validator | Rejects an answer with no citation without calling the LLM. Otherwise checks that every claim is supported by the cited passages. A rejected answer becomes "I couldn't find this in your documents." | none | 0 or 1 |
 
 Worst case is 5 LLM calls on the lookup route (Planner, two rewrites, Answerer, Validator) and 4
-on the table route. A hard cap of 8 calls per question applies regardless.
+on the table route (Planner, Analyst, Answerer, Validator), or 6 if the Analyst's query is invalid
+and the run falls back to text search (Planner, Analyst, two rewrites, Answerer, Validator). A hard
+cap of 8 calls per question applies regardless.
 
 ## 4. Deployment steps
 
@@ -162,6 +165,14 @@ memory for their session.
   information spread across many places may get an incomplete answer.
 - **Table questions depend on the model producing a valid query.** If it cannot, the system falls
   back to text search, which is weaker for arithmetic.
+- **No conversation memory.** Each question is answered on its own, so a follow-up such as "what
+  about West?" does not know what "what" refers to. Ask the full question each time.
+- **Excel sheets need the header in the first row.** A sheet with a title row above the column
+  names is read with the wrong headers, so table questions on it fall back to text search.
+- **Large table answers are shortened.** A grouped result with more than 50 groups shows the 50
+  largest and says how many were left out.
+- **Same file name, different content.** The second file is kept and shown as `name (2).ext`.
+  Removing a file in the uploader rebuilds the index from the files that remain.
 - **Evaluation.** The 15-question evaluation (12 fact questions and 3 that should be refused) is
   small. **TODO: add the real pass rate and any failures from `eval/results.md`.**
 

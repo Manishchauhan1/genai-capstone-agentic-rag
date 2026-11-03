@@ -54,3 +54,13 @@ def test_bad_file_raises_and_leaves_workspace_empty(
         ws.add_file(name, payload)
     assert ws.is_empty() is True
     assert ws.store.count() == 0
+
+
+def test_same_filename_with_different_content_keeps_both(offline_embedding):
+    ws = Workspace(embedding_function=offline_embedding)
+    ws.add_file("sales.csv", b"region,amount\nEast,10\n")
+    ws.add_file("sales.csv", b"region,amount\nNorth,999\n")
+    assert len(ws.tables()) == 2
+    assert ws.filenames() == ["sales.csv", "sales (2).csv"]
+    found = {hit.chunk.filename for hit in ws.store.query("North 999", k=5)}
+    assert "sales (2).csv" in found

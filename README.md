@@ -20,7 +20,7 @@ source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 
 cp .env.example .env                 # Windows: copy .env.example .env
-# open .env and fill in GROQ_API_KEY and GROQ_MODEL (a model from your Groq console list)
+# open .env and fill in GROQ_API_KEY and GROQ_MODEL (a general chat model from your Groq console list)
 
 streamlit run app.py
 ```
@@ -34,7 +34,7 @@ Your `.env` file is private: it is git-ignored and left out of the submission zi
 ## Tests
 
 ```bash
-python -m pytest                      # 95 offline tests, no internet or key needed
+python -m pytest                      # 112 offline tests, no internet or key needed
 python -m pytest -m network -v        # real Groq call + real embedding model (needs .env and internet)
 python eval/run_eval.py --scores-only # retrieval scores for the 15 evaluation questions
 python eval/run_eval.py               # full evaluation, writes eval/results.md

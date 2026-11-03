@@ -30,18 +30,22 @@ class VectorStore:
         unique = {chunk.id: chunk for chunk in chunks}
         if not unique:
             return 0
-        present = set(self._collection.get(ids=list(unique))["ids"])
+        batch = self._client.get_max_batch_size()  # Chroma rejects bigger single calls
+        ids = list(unique)
+        present: set[str] = set()
+        for start in range(0, len(ids), batch):
+            present.update(self._collection.get(ids=ids[start:start + batch])["ids"])
         new = [chunk for chunk_id, chunk in unique.items() if chunk_id not in present]
-        if not new:
-            return 0
-        self._collection.add(
-            ids=[chunk.id for chunk in new],
-            documents=[chunk.text for chunk in new],
-            metadatas=[
-                {"filename": c.filename, "location": c.location, "file_hash": c.file_hash}
-                for c in new
-            ],
-        )
+        for start in range(0, len(new), batch):
+            part = new[start:start + batch]
+            self._collection.add(
+                ids=[chunk.id for chunk in part],
+                documents=[chunk.text for chunk in part],
+                metadatas=[
+                    {"filename": c.filename, "location": c.location, "file_hash": c.file_hash}
+                    for c in part
+                ],
+            )
         return len(new)
 
     def count(self) -> int:

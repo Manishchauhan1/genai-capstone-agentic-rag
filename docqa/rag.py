@@ -1,5 +1,7 @@
 """Grounded answer generation from retrieved context (FR-7)."""
 
+import re
+
 from docqa.llm import LLM
 from docqa.models import Hit, Source
 
@@ -17,15 +19,19 @@ _SYSTEM_PROMPT = (
 )
 
 
+_CONTEXT_TAG = re.compile(r"<\s*/?\s*context\s*>", re.IGNORECASE)
+
+
 def _neutralise(text: str) -> str:
     """Stop document text from closing or reopening the context block."""
-    return text.replace("</context>", "[/context]").replace("<context>", "[context]")
+    return _CONTEXT_TAG.sub("[context]", text)
 
 
 def format_context(numbered_hits: list[tuple[int, Hit]]) -> str:
     """Render numbered passages as a <context> block. Document text is quoted data."""
     blocks = [
-        f"[{number}] ({hit.chunk.filename}, {hit.chunk.location})\n{_neutralise(hit.chunk.text)}"
+        f"[{number}] ({_neutralise(hit.chunk.filename)}, {_neutralise(hit.chunk.location)})\n"
+        f"{_neutralise(hit.chunk.text)}"
         for number, hit in numbered_hits
     ]
     return "<context>\n" + "\n\n".join(blocks) + "\n</context>"

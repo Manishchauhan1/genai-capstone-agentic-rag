@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 from docqa import llm as llm_module
 from docqa.agents.graph import run_agent
 from docqa.config import load_settings
+from docqa.display import plain
 from docqa.errors import DocQAError
-from docqa.workspace import Workspace
+from docqa.uploads import UploadSync
 
 load_dotenv()
 logger = logging.getLogger("docqa.app")
@@ -41,22 +42,20 @@ except DocQAError as error:
     )
     st.stop()
 
-if "workspace" not in st.session_state:
-    st.session_state.workspace = Workspace()
+if "uploads" not in st.session_state:
+    st.session_state.uploads = UploadSync()
     st.session_state.llm = llm_module.build_llm(settings)
     st.session_state.messages = []
-    st.session_state.processed = set()
-    st.session_state.upload_notes = []
 
-workspace: Workspace = st.session_state.workspace
+upload_sync: UploadSync = st.session_state.uploads
 
 
 def _render_answer(answer: str, sources: list, trace: list) -> None:
-    st.markdown(answer)
+    st.markdown(plain(answer))
     if sources:
         st.markdown("**Sources**")
         for source in sources:
-            st.markdown(f"- {source['filename']}, {source['location']}")
+            st.markdown(plain(f"- {source['filename']}, {source['location']}"))
     with st.expander("How the agents answered"):
         for line in trace:
             st.markdown(f"- {line}")
@@ -67,32 +66,18 @@ with st.sidebar:
     uploads = st.file_uploader(
         "Upload files", type=["pdf", "txt", "csv", "xlsx"], accept_multiple_files=True
     )
-    for upload in uploads or []:
-        signature = (upload.name, upload.size)
-        if signature in st.session_state.processed:
-            continue
-        st.session_state.processed.add(signature)
-        try:
-            result = workspace.add_file(upload.name, upload.getvalue())
-            if result.duplicate:
-                note = ("info", f"{upload.name} was already added.")
-            else:
-                note = ("success", f"Added {upload.name} ({result.chunks_added} chunks).")
-        except DocQAError as error:
-            note = ("error", str(error))
-        except Exception:
-            logger.exception("Unexpected error while adding %s", upload.name)
-            note = ("error", f"Something went wrong while reading {upload.name}. Please try again.")
-        st.session_state.upload_notes.append(note)
-    for level, text in st.session_state.upload_notes:
-        getattr(st, level)(text)
+    with st.spinner("Reading your files..."):
+        upload_sync.sync(uploads)
+    workspace = upload_sync.workspace
+    for level, text in upload_sync.notes.values():
+        getattr(st, level)(plain(text))
     if workspace.filenames():
-        st.markdown("**Loaded:** " + ", ".join(workspace.filenames()))
+        st.markdown(plain("**Loaded:** " + ", ".join(workspace.filenames())))
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "user":
-            st.markdown(message["content"])
+            st.markdown(plain(message["content"]))
         else:
             _render_answer(message["content"], message["sources"], message["trace"])
 
@@ -100,11 +85,11 @@ question = st.chat_input("Ask a question about your documents")
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
-        st.markdown(question)
+        st.markdown(plain(question))
     with st.chat_message("assistant"):
         try:
             with st.spinner("Thinking..."):
-                result = run_agent(question, workspace, st.session_state.llm)
+                result = run_agent(question, upload_sync.workspace, st.session_state.llm)
             sources = [{"filename": s.filename, "location": s.location} for s in result.sources]
             _render_answer(result.answer, sources, result.trace)
             st.session_state.messages.append(

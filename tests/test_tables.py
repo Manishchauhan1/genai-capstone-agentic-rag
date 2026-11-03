@@ -98,3 +98,26 @@ def test_describe_tables_names_every_column(tables):
     for name in ("region", "product", "amount"):
         assert name in description
     assert "5 rows" in description
+
+
+def test_small_decimals_are_not_rounded_away():
+    t = {KEY: pd.DataFrame({"rate": [0.004, 0.0035, 0.012]})}
+    assert run_table_query(t, _query(operation="min", column="rate")).endswith("= 0.0035")
+    assert run_table_query(t, _query(operation="mean", column="rate")).endswith("= 0.0065")
+
+
+def test_all_missing_column_reports_no_values():
+    t = {KEY: pd.DataFrame({"x": [float("nan")] * 3})}
+    for operation in ("sum", "mean", "min", "max"):
+        result = run_table_query(t, _query(operation=operation, column="x"))
+        assert result.endswith("= no values"), result
+
+
+def test_group_by_output_is_capped():
+    from docqa.tables import MAX_LIST_ROWS
+
+    frame = pd.DataFrame({"id": [f"id{i}" for i in range(80)], "amount": list(range(80))})
+    result = run_table_query({KEY: frame}, _query(operation="sum", column="amount", group_by="id"))
+    assert len(result.splitlines()) <= MAX_LIST_ROWS + 3
+    assert "30 more groups" in result
+    assert "id79: 79" in result  # the largest groups are the ones kept

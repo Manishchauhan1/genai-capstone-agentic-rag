@@ -73,8 +73,23 @@ def _format(value) -> str:
     if hasattr(value, "item"):
         value = value.item()
     if isinstance(value, float):
-        return str(int(value)) if value.is_integer() else str(round(value, 2))
+        if value.is_integer():
+            return str(int(value))
+        # Keep small values (0.0035) intact; round only large ones to 2 places.
+        return str(round(value, 2)) if abs(value) >= 1 else f"{value:.6g}"
     return str(value)
+
+
+def _capped_lines(series, header: str) -> str:
+    """One `group: value` line per group; large results keep only the biggest groups."""
+    total = len(series)
+    if total > MAX_LIST_ROWS:
+        series = series.sort_values(ascending=False, kind="stable").head(MAX_LIST_ROWS)
+    lines = [f"{group}: {_format(value)}" for group, value in series.items()]
+    if total > MAX_LIST_ROWS:
+        lines.append(f"... and {total - MAX_LIST_ROWS} more groups ({total} groups in all; "
+                     f"the {MAX_LIST_ROWS} largest are shown)")
+    return header + "\n".join(lines)
 
 
 def _where(filters: list[Filter]) -> str:
@@ -110,8 +125,7 @@ def run_table_query(tables: dict[str, pd.DataFrame], query: TableQuery) -> str:
     if query.operation == "count":
         if query.group_by:
             counts = frame.groupby(query.group_by).size()
-            lines = [f"{group}: {_format(n)}" for group, n in counts.items()]
-            return f"count of rows in {query.table}{where} by {query.group_by}:\n" + "\n".join(lines)
+            return _capped_lines(counts, f"count of rows in {query.table}{where} by {query.group_by}:\n")
         return f"count of rows in {query.table}{where} = {len(frame)}"
 
     if query.column is None:
@@ -121,12 +135,13 @@ def run_table_query(tables: dict[str, pd.DataFrame], query: TableQuery) -> str:
 
     if query.group_by:
         grouped = frame.groupby(query.group_by)[query.column].agg(query.operation)
-        lines = [f"{group}: {_format(value)}" for group, value in grouped.items()]
         header = f"{query.operation} of {query.column} in {query.table}{where} by {query.group_by}:\n"
-        return header + "\n".join(lines)
+        return _capped_lines(grouped, header)
 
     label = f"{query.operation} of {query.column} in {query.table}{where}"
     if frame.empty:
         return f"{label} = no matching rows"
+    if frame[query.column].notna().sum() == 0:
+        return f"{label} = no values"
     value = frame[query.column].agg(query.operation)
     return f"{label} = {_format(value)}"

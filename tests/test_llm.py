@@ -103,3 +103,51 @@ def test_build_llm_uses_settings():
     llm = build_llm(Settings(SECRET, "m"))
     assert isinstance(llm, GroqLLM)
     assert llm.model == "m"
+
+
+def _server_error():
+    return groq.InternalServerError(
+        "over capacity", response=httpx.Response(503, request=_REQUEST), body=None
+    )
+
+
+def _too_large():
+    return groq.APIStatusError(
+        "too big", response=httpx.Response(413, request=_REQUEST), body=None
+    )
+
+
+def test_server_error_is_retried():
+    sleeps = []
+    llm, _ = _llm([_server_error(), "ok"], sleeps)
+    assert llm.complete("sys", "user") == "ok"
+    assert sleeps == [5]
+
+
+def test_server_error_every_time_says_busy_not_bad_key():
+    llm, _ = _llm([_server_error()] * 3, [])
+    with pytest.raises(DocQAError) as exc:
+        llm.complete("sys", "user")
+    assert "busy" in str(exc.value)
+    assert "GROQ_API_KEY" not in str(exc.value)
+
+
+def test_too_large_request_has_its_own_message():
+    llm, client = _llm([_too_large()], [])
+    with pytest.raises(DocQAError) as exc:
+        llm.complete("sys", "user")
+    assert "too large" in str(exc.value)
+    assert "GROQ_API_KEY" not in str(exc.value)
+    assert len(client.requests) == 1
+
+
+def test_reasoning_block_is_removed_from_the_reply():
+    llm, _ = _llm(['<think>maybe {"x": 1}</think>\n{"supported": true}'], [])
+    assert llm.complete("sys", "user") == '{"supported": true}'
+
+
+def test_sdk_own_retries_are_switched_off(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(groq, "Groq", lambda **kwargs: captured.update(kwargs) or object())
+    GroqLLM(SECRET, "m")
+    assert captured["max_retries"] == 0

@@ -1,6 +1,7 @@
 """One user's session: their files, their tables and their vector store."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import PurePath
 
 import pandas as pd
 
@@ -27,9 +28,21 @@ class Workspace:
         document = parse_file(filename, data)
         if document.file_hash in self._documents:
             return AddResult(filename, 0, True)
+        document = replace(document, filename=self._free_name(document.filename))
         added = self.store.add(chunk_document(document))
         self._documents[document.file_hash] = document
         return AddResult(filename, added, False)
+
+    def _free_name(self, filename: str) -> str:
+        """A second, different file with the same name becomes "name (2).ext"."""
+        taken = set(self.filenames())
+        if filename not in taken:
+            return filename
+        path = PurePath(filename)
+        number = 2
+        while f"{path.stem} ({number}){path.suffix}" in taken:
+            number += 1
+        return f"{path.stem} ({number}){path.suffix}"
 
     def is_empty(self) -> bool:
         return not self._documents

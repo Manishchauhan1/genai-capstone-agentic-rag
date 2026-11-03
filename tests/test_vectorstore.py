@@ -61,3 +61,12 @@ def test_default_embedding_matches_meaning_not_just_words():
     store.add(_three_chunks())
     hits = store.query("how long do I have to return a purchase?", k=3)
     assert hits[0].chunk.id == "h:0"
+
+
+def test_adding_more_chunks_than_one_chroma_batch_works(offline_embedding):
+    store = VectorStore(embedding_function=offline_embedding)
+    limit = store._client.get_max_batch_size()
+    chunks = [_chunk(i, f"word{i} filler text") for i in range(limit + 50)]
+    assert store.add(chunks) == len(chunks)
+    assert store.count() == len(chunks)
+    assert store.add(chunks) == 0
