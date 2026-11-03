@@ -1,0 +1,13 @@
+streamlit
+langgraph
+chromadb
+groq
+pypdf
+pandas
+openpyxl
+pydantic
+python-dotenv
+langchain-text-splitters
+pytest
+reportlab
+httpx
