@@ -41,6 +41,24 @@ class HashEmbedding(EmbeddingFunction):
         return HashEmbedding(**config)
 
 
+class FakeLLM:
+    """Scripted LLM for tests. Each reply is returned (or raised, if an Exception)
+    in order; every call is recorded in `.calls` as (system, user)."""
+
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.calls: list[tuple[str, str]] = []
+
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        self.calls.append((system, user))
+        if not self.replies:
+            raise AssertionError("FakeLLM ran out of scripted replies")
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
 @pytest.fixture
 def offline_embedding() -> HashEmbedding:
     return HashEmbedding()
